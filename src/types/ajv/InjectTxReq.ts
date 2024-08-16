@@ -3,9 +3,14 @@ import { AJVSchemaEnum } from '../enum/AJVSchemaEnum'
 
 const schemaInjectTxReq = {
   type: 'object',
-  properties: {},
+  properties: {
+    timestamp: { type: 'number' },
+    tx: { type: 'object' },
+    raw: { type: 'string' },
+    isInternalTx: { type: 'boolean' },
+  },
   required: [],
-  allowAdditionalProperties: false,
+  additionalProperties: false,
 }
 
 export function initInjectTxReq(): void {
