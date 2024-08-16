@@ -153,6 +153,8 @@ import { accountDeserializer, accountSerializer } from './types/Helpers'
 import { runWithContextAsync } from './utils/RequestContext'
 import { Utils } from '@shardus/types'
 import { verifyStakeTx, verifyUnstakeTx } from './tx/staking/verifyStake'
+import { AJVSchemaEnum } from './types/enum/AJVSchemaEnum'
+import { verifyPayload } from './types/ajv/Helpers'
 
 let latestBlock = 0
 export const blocks: BlockMap = {}
@@ -1178,6 +1180,16 @@ const configShardusEndpoints = (): void => {
   shardus.registerExternalPost('inject', externalApiMiddleware, async (req, res) => {
     try {
       const tx = req.body
+      const errors = verifyPayload(AJVSchemaEnum.InjectTxReq, tx)
+      if (errors !== null) {
+        nestedCountersInstance.countEvent('external', 'ajv-failed-query-certificate')
+        return res.json({
+          success: false,
+          reason: "Invalid request body",
+          details: isDebugMode() ? errors : null,
+          status: 400,
+        })
+      }
       // if timestamp is a float, round it down to nearest millisecond
       if (tx.timestamp && typeof tx.timestamp === 'number') {
         tx.timestamp = Math.floor(tx.timestamp)
@@ -2208,7 +2220,16 @@ const configShardusEndpoints = (): void => {
     async (req: Request, res: Response) => {
       try {
         nestedCountersInstance.countEvent('shardeum-penalty', 'called query-certificate')
-
+        const errors = verifyPayload(AJVSchemaEnum.QueryCertReq, req.body)
+        if (errors !== null) {
+          nestedCountersInstance.countEvent('external', 'ajv-failed-query-certificate')
+          return res.json({
+            success: false,
+            reason: 'Invalid request body',
+            details: isDebugMode() ? errors : null,
+            status: 400,
+          })
+        }
         const queryCertRes = await queryCertificateHandler(req, shardus)
         if (ShardeumFlags.VerboseLogs) console.log('queryCertRes', queryCertRes)
         if (queryCertRes.success) {
@@ -2260,6 +2281,17 @@ const configShardusEndpoints = (): void => {
   shardus.registerExternalPut('admin-certificate', externalApiMiddleware, async (req, res) => {
     try {
       nestedCountersInstance.countEvent('shardeum-admin-certificate', 'called PUT admin-certificate')
+
+      const errors = verifyPayload(AJVSchemaEnum.PutAdminCertReq, req.body)
+      if (errors !== null) {
+        nestedCountersInstance.countEvent('external', 'ajv-failed-query-certificate')
+        return res.json({
+          success: false,
+          reason: "Invalid request body",
+          details: isDebugMode() ? errors : null,
+          status: 400,
+        })
+      }
 
       const certRes = await putAdminCertificateHandler(req, shardus)
       /* prettier-ignore */ if (ShardeumFlags.VerboseLogs) console.log('certRes', certRes)
