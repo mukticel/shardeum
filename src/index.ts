@@ -181,6 +181,9 @@ const ERC20_BALANCEOF_CODE = '0x70a08231'
 let shardus: Shardus
 let profilerInstance
 
+let nodeInitRewardApplyFailureCount = 0
+let isNodeInitRewardTestingActive = true
+
 //   next shardus core will export the correct type
 export let logFlags = {
   verbose: false,
@@ -2404,11 +2407,35 @@ const configShardusNetworkTransactions = (): void => {
       return true
     }
   )
+
   shardus.registerApplyVerifier(
     'nodeInitReward',
     async (txEntry: P2P.ServiceQueueTypes.AddNetworkTx<SignedNodeInitTxData>) => {
       const tx = txEntry.txData
       /* prettier-ignore */ if (ShardeumFlags.VerboseLogs) console.log('Validating nodeInitReward applied', Utils.safeStringify(tx))
+      
+      if (ShardeumFlags.failNodeInitRewardApplyForTesting && isNodeInitRewardTestingActive && nodeInitRewardApplyFailureCount < ShardeumFlags.maxNodeInitRewardApplyFailures) {
+        nodeInitRewardApplyFailureCount++
+        nestedCountersInstance.countEvent('shardeum-staking', `applyNodeInitReward fail for testing`)
+        console.log(`applyNodeInitReward failed for testing purposes (attempt ${nodeInitRewardApplyFailureCount})`)
+        /* prettier-ignore */ if (ShardeumFlags.VerboseLogs) console.log(`applyNodeInitReward failed for testing purposes (attempt ${nodeInitRewardApplyFailureCount})`)
+        
+        // Check if we've reached the maximum number of failures
+        if (nodeInitRewardApplyFailureCount >= ShardeumFlags.maxNodeInitRewardApplyFailures) {
+          // Turn off the testing by setting the global variable to false
+          isNodeInitRewardTestingActive = false;
+          console.log('Turned off node init reward testing after reaching maximum failures')
+          /* prettier-ignore */ if (ShardeumFlags.VerboseLogs) console.log('Turned off node init reward testing after reaching maximum failures')
+          
+      
+          // Don't fail this transaction, allow it to proceed
+          console.log('Allowing this node init reward transaction to proceed after reaching maximum failures')
+        } else {
+          // Only fail the transaction if we haven't reached the maximum failure count
+          return false
+        }
+      }
+      
       const shardusAddress = tx.publicKey?.toLowerCase()
       const account = await shardus.getLocalOrRemoteAccount(shardusAddress)
       if (!account) {

@@ -22,6 +22,9 @@ import { scaleByStabilityFactor, sleep, _base16BNParser, _readableSHM, generateT
 import { retry } from '../utils/retry'
 import config from '../config'
 
+let claimRewardApplyFailureCount = 0
+let isClaimRewardTestingActive = true
+
 export async function injectClaimRewardTx(
   shardus,
   eventData: ShardusTypes.ShardusEvent | any,
@@ -279,6 +282,42 @@ export async function applyClaimRewardTx(
   mustUseAdminCert = false
 ): Promise<void> {
   if (ShardeumFlags.VerboseLogs) console.log(`Running applyClaimRewardTx`, tx, wrappedStates)
+
+
+  // // Add the flag check here
+  // if (ShardeumFlags.failClaimRewardApplyForTesting) {
+  //   nestedCountersInstance.countEvent('shardeum-staking', `applyClaimRewardTx fail for testing`)
+  //   shardus.applyResponseSetFailed(
+  //     applyResponse,
+  //     `applyClaimReward failed for testing purposes`
+  //   )
+  //   return
+  // }
+
+  if (ShardeumFlags.failClaimRewardApplyForTesting && isClaimRewardTestingActive && claimRewardApplyFailureCount < ShardeumFlags.maxClaimRewardApplyFailures) {
+    claimRewardApplyFailureCount++;
+    nestedCountersInstance.countEvent('shardeum-staking', `applyClaimRewardTx fail for testing`)
+    console.log(`applyClaimRewardTx fail for testing (attempt ${claimRewardApplyFailureCount})`)
+  
+    // Check if we've reached the maximum number of failures
+    if (claimRewardApplyFailureCount >= ShardeumFlags.maxClaimRewardApplyFailures) {
+      // Turn off the testing by setting the global variable to false
+      isClaimRewardTestingActive = false;
+      console.log('Turned off claim reward testing after reaching maximum failures');
+      /* prettier-ignore */ if (ShardeumFlags.VerboseLogs) console.log('Turned off claim reward testing after reaching maximum failures');
+  
+      // Don't fail this transaction, allow it to proceed
+      console.log('Allowing this claim reward transaction to proceed after reaching maximum failures');
+    } else {
+      // Only fail the transaction if we haven't reached the maximum failure count
+      shardus.applyResponseSetFailed(
+        applyResponse,
+        `applyClaimReward failed for testing purposes (attempt ${claimRewardApplyFailureCount})`
+      )
+      return
+    }
+  }
+
   // const isValidRequest = validateClaimRewardState(tx, wrappedStates, shardus, mustUseAdminCert)
   // if (isValidRequest.result === 'fail') {
   //   /* prettier-ignore */

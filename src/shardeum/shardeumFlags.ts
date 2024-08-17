@@ -119,6 +119,10 @@ interface ShardeumFlags {
   cleanStaleShardeumStateMap: boolean
   beta1_11_2: boolean
   failedStakeReceipt: boolean // For stake/unstake TXs that fail the checks in apply(), create an EVM receipt marked as failed
+  failClaimRewardApplyForTesting: boolean
+  maxClaimRewardApplyFailures: number
+  failNodeInitRewardApplyForTesting: boolean
+  maxNodeInitRewardApplyFailures: number
 }
 
 export const ShardeumFlags: ShardeumFlags = {
@@ -275,6 +279,10 @@ export const ShardeumFlags: ShardeumFlags = {
   beta1_11_2: true,
 
   failedStakeReceipt: true,
+  failClaimRewardApplyForTesting: false,
+  maxClaimRewardApplyFailures: 10,
+  failNodeInitRewardApplyForTesting: false,
+  maxNodeInitRewardApplyFailures: 10,
 }
 
 export function updateShardeumFlag(key: string, value: string | number | boolean): void {
